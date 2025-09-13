@@ -1,0 +1,173 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+//directUrl = env("DIRECT_URL") // Add this line for migrations
+}
+
+enum KycStatus {
+  pending
+  uploaded
+  verified
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+model User {
+  userId                  String          @id @default(uuid())
+  authUserId              String?          @unique @db.Uuid   // <- Supabase auth.users.id. TODO: remove ? before supabase push
+  email                   String?          @unique
+  phoneNumber             String?          @unique
+  password                String?
+  isVerified              KycStatus       @default(pending)
+  isActive                Boolean         @default(true)
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  // Relations
+  login                   Login?
+  details                 UserDetails?
+  documents               UserDocuments?
+  wallet                  Wallet?
+  transactions            Transaction[]
+  activities              Activity[]
+  sessions                UserSession[]
+}
+
+model Login {
+  id                String    @id @default(uuid())
+  phoneNumber       String?   @unique
+  email             String?   @unique
+  lastOtp           String?
+  lastOtpSentAt     DateTime?
+  verified          Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relation to User (optional, becomes active after verification)
+  userId            String?   @unique
+  user              User?     @relation(fields: [userId], references: [userId])
+}
+
+model UserDetails {
+  id                      String          @id @default(uuid())
+  userId                  String          @unique
+  fullName                String?
+  dob                     DateTime?
+  gender                  Gender?
+  emailVerified           Boolean? @default(false)
+  emailVerificationToken  String?
+  addressLine1            String?
+  addressLine2            String?
+  city                    String?
+  state                   String?
+  country                 String?
+  postalCode              String?
+  updatedAt               DateTime        @updatedAt
+
+  user                    User            @relation(fields: [userId], references: [userId])
+}
+
+model UserDocuments {
+  userId                  String          @id
+  kycDocument             String?
+  panNumber               String?         @unique
+  adhaarNumber            String?         @unique
+  passport                String?         @unique
+  updatedAt               DateTime        @updatedAt
+
+  user                    User            @relation(fields: [userId], references: [userId])
+}
+
+model Wallet {
+  id                      String          @id @default(uuid())
+  userId                  String          @unique
+  balance                 Float           @default(0)
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  user                    User            @relation(fields: [userId], references: [userId])
+}
+
+model Transaction {
+  id                      String          @id @default(uuid())
+  trxId                   String          @unique 
+  userId                  String
+  type                    String
+  purity                  String
+  amount                  Float
+  weightInGrams           Float
+  createdAt               DateTime        @default(now())
+
+  user                    User            @relation(fields: [userId], references: [userId])
+  @@index([userId])
+}
+
+model Activity {
+  id                      String          @id @default(uuid())
+  userId                  String
+  type                    String
+  message                 String
+  ip                      String?
+  userAgent               String?
+  platform                String?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  user                    User            @relation(fields: [userId], references: [userId])
+  @@index([userId, createdAt])
+}
+
+model UserSession {
+  id               String   @id @default(uuid())
+  userId           String
+  refreshTokenHash String?
+  device           String?
+  platform         String?
+  ip               String?
+  sessionVersion   Int      @default(1)   // NEW: bump to kick access JWTs
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  revokedAt        DateTime?
+
+  user             User     @relation(fields: [userId], references: [userId])
+  revokedRefreshTokens RevokedRefreshToken[] // Relation to RevokedRefreshToken
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+}
+
+model OtpChallenge {
+  id         String   @id @default(uuid())
+  channel    String   // "PHONE" | "EMAIL"
+  target     String   // phone or email
+  codeHash   String   // hash of OTP (never store raw)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int      @default(0)
+  userId     String?
+  createdAt  DateTime @default(now())
+
+  @@index([channel, target, expiresAt])
+}
+
+model RevokedRefreshToken {
+  id        String   @id @default(uuid())
+  sessionId String
+  tokenHash String
+  createdAt DateTime @default(now())
+
+  session   UserSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId])
+  @@index([tokenHash])
+}

@@ -1,2 +1,2 @@
-# GogoldZ-app-server
-Its a nodejs server for all business API services
+# GoGoldZ-app-server
+APIs for GoGoldZ app.
