@@ -42,10 +42,10 @@
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
-    "@prisma/client": "^6.15.0",
+    "@prisma/client": "^6.16.1",
     "cross-env": "^10.0.0",
     "dotenv-safe": "^9.1.0",
     "nodemon": "^3.1.10",
-    "prisma": "^6.15.0"
+    "prisma": "^6.16.1"
   }
 }
