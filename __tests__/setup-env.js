@@ -1,0 +1,13 @@
+process.env.NODE_ENV = "test";
+process.env.PORT = process.env.PORT || "0";
+process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
+process.env.ACCESS_TOKEN_TTL = process.env.ACCESS_TOKEN_TTL || "900";
+process.env.REFRESH_TOKEN_TTL = process.env.REFRESH_TOKEN_TTL || String(30 * 24 * 60 * 60);
+process.env.REFRESH_COOKIE_NAME = process.env.REFRESH_COOKIE_NAME || "refresh_token";
+process.env.CSRF_COOKIE_NAME = process.env.CSRF_COOKIE_NAME || "csrf_token";
+process.env.REFRESH_COOKIE_PATH = process.env.REFRESH_COOKIE_PATH || "/session";
+process.env.CORS_ALLOWLIST = process.env.CORS_ALLOWLIST || "http://localhost";
+process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost";
+process.env.COOKIE_SECRET = process.env.COOKIE_SECRET || "test-cookie-secret";
+process.env.TEST_OTP = process.env.TEST_OTP || "123456";
+process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/gogoldz_test";

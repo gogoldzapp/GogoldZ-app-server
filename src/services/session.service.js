@@ -9,7 +9,7 @@ const REFRESH_TOKEN_TTL_DAYS = parseInt(
   10
 );
 const REFRESH_COOKIE_NAME = process.env.REFRESH_COOKIE_NAME || "refresh_token";
-const REFRESH_COOKIE_PATH = process.env.REFRESH_COOKIE_PATH || "/auth";
+const REFRESH_COOKIE_PATH = process.env.REFRESH_COOKIE_PATH || "/session";
 const CSRF_COOKIE_NAME = process.env.CSRF_COOKIE_NAME || "csrf_token";
 
 function addDays(date, d) {
@@ -105,7 +105,7 @@ export async function issueRefreshRotation({ rawRefreshToken }) {
   return { accessToken, refreshToken: newRaw, session: updated };
 }
 
-/** If presented token matches any revoked hash → revoke the linked session */
+/** If presented token matches any revoked hash -> revoke the linked session */
 export async function reuseDetectionAndRevoke(rawRefreshToken) {
   const revoked = await prisma.revokedRefreshToken.findMany({
     orderBy: { createdAt: "desc" },
@@ -113,18 +113,19 @@ export async function reuseDetectionAndRevoke(rawRefreshToken) {
   });
   for (const r of revoked) {
     if (await bCompare(rawRefreshToken, r.tokenHash)) {
-      await prisma.userSession.update({
+      const updated = await prisma.userSession.update({
         where: { id: r.sessionId },
         data: {
           revokedAt: new Date(),
           refreshTokenHash: null,
           sessionVersion: { increment: 1 },
         },
+        select: { id: true, userId: true },
       });
-      return true;
+      return updated;
     }
   }
-  return false;
+  return null;
 }
 
 /** Revoke by raw refresh token (helper for logout flows) */
@@ -139,18 +140,19 @@ export async function revokeByRefreshToken(rawRefreshToken) {
       s.refreshTokenHash &&
       (await bCompare(rawRefreshToken, s.refreshTokenHash))
     ) {
-      await prisma.userSession.update({
+      const updated = await prisma.userSession.update({
         where: { id: s.id },
         data: {
           revokedAt: new Date(),
           refreshTokenHash: null,
           sessionVersion: { increment: 1 },
         },
+        select: { id: true, userId: true },
       });
-      return true;
+      return updated;
     }
   }
-  return false;
+  return null;
 }
 
 export async function revokeSessionById(userId, sessionId) {
@@ -244,3 +246,19 @@ export function requireCsrfIfCookie(req) {
     return { ok: false, status: 401, message: "CSRF token mismatch" };
   return { ok: true };
 }
+
+export function clearRefreshCookie(res) {
+  res.clearCookie(REFRESH_COOKIE_NAME, {
+    path: REFRESH_COOKIE_PATH,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
+  res.clearCookie(CSRF_COOKIE_NAME, {
+    path: REFRESH_COOKIE_PATH,
+    httpOnly: false, // CSRF cookie is readable by JS
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
+}
+
