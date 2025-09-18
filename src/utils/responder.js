@@ -3,7 +3,7 @@ export const ok = (res, message = "OK", data = null) =>
 export const bad = (res, message = "Bad Request", code = 400, data = null) =>
   res.status(code).json({ success: false, message, data });
 export const unauthorized = (res, message = "Unauthorized", data = null) =>
-  bad(res, message, data);
+  bad(res, message, 401, data);
 export const tooMany = (res, message = "Too many requests") =>
   bad(res, message, 429);
 export const notFound = (res, message = "Not found") => bad(res, message, 404);

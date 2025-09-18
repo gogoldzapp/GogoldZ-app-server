@@ -94,7 +94,13 @@ async function createOtpChallenge(channel, target) {
     : challenge;
 }
 
-async function verifyOtpChallenge(channel, target, code, opts = {}, req) {
+async function verifyOtpChallenge(
+  channel,
+  target,
+  code,
+  opts = {},
+  req = null
+) {
   const MAX_ATTEMPTS = Number.isInteger(opts.maxAttempts)
     ? opts.maxAttempts
     : 5;
