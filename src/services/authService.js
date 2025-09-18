@@ -94,7 +94,13 @@ async function createOtpChallenge(channel, target) {
     : challenge;
 }
 
-async function verifyOtpChallenge(channel, target, code, opts = {}) {
+async function verifyOtpChallenge(
+  channel,
+  target,
+  code,
+  opts = {},
+  req = null
+) {
   const MAX_ATTEMPTS = Number.isInteger(opts.maxAttempts)
     ? opts.maxAttempts
     : 5;
@@ -119,13 +125,13 @@ async function verifyOtpChallenge(channel, target, code, opts = {}) {
     orderBy: { createdAt: "desc" },
   });
   await logUserAction(
-    `OTP verification attempt for ${tg} via ${ch}`,
+    req,
     "verify_otp",
     `OTP verification attempt for ${tg} via ${ch}`
   );
   if (!challenge) {
     await logUserAction(
-      `OTP verification failed for ${tg} via ${ch}`,
+      req,
       "verify_otp_failed",
       `OTP verification failed for ${tg} via ${ch}`
     );
@@ -178,11 +184,7 @@ export async function sendOtpService(req, res) {
       .json({ success: false, message: "channel and target required" });
   const ch = String(channel).toUpperCase();
   const otpChallenge = await createOtpChallenge(ch, target);
-  await logUserAction(
-    `OTP sent for ${target} via ${channel}`,
-    "send_otp",
-    `OTP sent to ${target} via ${channel}`
-  );
+  await logUserAction(req, "send_otp", `OTP sent to ${target} via ${channel}`);
   return res.json({
     success: true,
     message: "OTP sent",
@@ -203,7 +205,7 @@ export async function verifyOtpService(req, res, next) {
         .status(400)
         .json({ success: false, message: "channel, target, code required" });
 
-    await verifyOtpChallenge(ch, target, code);
+    await verifyOtpChallenge(ch, target, code, req);
 
     // Find-or-create user by identity (phoneNumber/email) + business userId
     const whereIdentity =
@@ -226,7 +228,7 @@ export async function verifyOtpService(req, res, next) {
             data: { userId: newUserId, ...whereIdentity, isActive: true },
           });
           await logUserAction(
-            `New user created: ${user.userId} (${target})`,
+            req,
             "user_signup",
             `New user created: ${user.userId} (${target})`
           );

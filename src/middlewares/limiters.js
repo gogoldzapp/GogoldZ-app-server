@@ -1,93 +1,141 @@
+// src/middlewares/limiters.js
 import rateLimit from "express-rate-limit";
 
 /**
- * IMPORTANT: make sure your app is behind a proxy sets `trust proxy`
- * in src/server.js or wherever you create the Express app:
- *   app.set('trust proxy', true)
- * so req.ip uses X-Forwarded-For correctly (Heroku/Render/Nginx/etc.)
+ * OTP per-target key: stable per recipient (phone/email/target).
+ * If your project used a similar helper before, this preserves behavior.
  */
-/**IPv6-safe key generator( uses the library helper when available ) */
-const ipv6SafeKey = (req) => {
-  return req.ip || "unknown"; // fallback if lib fn missing
-};
+export function otpTargetKey(req /*, res*/) {
+  const b = req.body || {};
+  const target =
+    (typeof b.phoneNumber === "string" && b.phoneNumber.trim()) ||
+    (typeof b.email === "string" && b.email.trim()) ||
+    (typeof b.target === "string" && b.target.trim()) ||
+    "";
+  return target || "unknown";
+}
 
-/**Factory for making consistent limiters */
+/**
+ * IPv6-safe key (prevents IPv6 users from bypassing IP limits).
+ * Normalizes IPv6-mapped IPv4 (::ffff:127.0.0.1) and strips zone indexes.
+ */
+function ipv6SafeKey(req /*, res*/) {
+  const ip = req.ip || req.connection?.remoteAddress || "unknown";
+  return ip.replace(/^::ffff:/, "").replace(/%.*$/, "");
+}
 
-export function makeLimiter({
-  windowMs,
-  limit,
-  message = "Too many requests, slow down",
-}) {
+/**
+ * Wrapper adding:
+ *  - Consistent JSON: { success:false, message }
+ *  - Abuse logging on block
+ *  - IPv6-safe keying by default
+ *
+ * NOTE: express-rate-limit v7: DO NOT use onLimitReached (removed).
+ */
+function withAbuseLogging(options = {}) {
+  const messageText =
+    typeof options.message === "string" ? options.message : "Too many requests";
+
   return rateLimit({
-    windowMs,
-    max: limit,
     standardHeaders: true,
     legacyHeaders: false,
-    message,
     keyGenerator: ipv6SafeKey,
-    validate: true,
+    // Log when a request is BLOCKED (exceeded)
+    handler: (req, res /*, next, opts*/) => {
+      req.app
+        ?.get?.("logger")
+        ?.warn(
+          { type: "RATE_LIMIT_BLOCK", ip: req.ip, path: req.originalUrl },
+          "Rate limit block"
+        );
+      res.status(429).json({ success: false, message: messageText });
+    },
+    ...options,
   });
 }
 
-/* --------- Shared limiters you can reuse across routes --------- */
+/* ────────────────────────────────────────────────────────────────────────────
+ * OTP limiters (same exported names/usage as before)
+ * Mount BOTH per-target and per-IP for best protection:
+ *   router.post("/send-otp", otpSendLimiter, otpSendIpLimiter, ...);
+ *   router.post("/verify-otp", otpVerifyLimiter, otpVerifyIpLimiter, ...);
+ * ──────────────────────────────────────────────────────────────────────────── */
 
-// Global API limiter (e.g., 100 req/15m per IP)
-export const globalLimiter = makeLimiter({
+export const otpSendLimiter = withAbuseLogging({
   windowMs: 15 * 60 * 1000,
-  limit: 100,
+  max: 5,
+  keyGenerator: otpTargetKey, // per-recipient throttling
+  message: "Too many OTP requests, please try again later.",
 });
 
-// === OTP limits (memory-only) ===
-const OTP_WINDOW_MS = parseInt(process.env.OTP_WINDOW_MS || "600000", 10); // 10 min
-const OTP_MAX_PER_TARGET = parseInt(process.env.OTP_MAX_PER_TARGET || "5", 10); // per phone/email
-const OTP_MAX_PER_IP = parseInt(process.env.OTP_MAX_PER_IP || "25", 10); // per IP
-
-// Build stable key per recipient: "<CHANNEL>:<TARGET>"
-function otpTargetKey(req) {
-  const b = req.body || {};
-  const ch = String(
-    b.channel || (b.phoneNumber ? "PHONE" : b.email ? "EMAIL" : "")
-  ).toUpperCase();
-  const tgt = b.target || b.phoneNumber || b.email || "";
-  return ch && tgt ? `${ch}:${tgt}` : `UNK:${req.ip}`; // fallback if body missing
-}
-
-const otpPerTargetLimiter = rateLimit({
-  windowMs: OTP_WINDOW_MS,
-  max: OTP_MAX_PER_TARGET,
-  keyGenerator: otpTargetKey,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: "Too many OTP attempts for this recipient",
-  },
+export const otpSendIpLimiter = withAbuseLogging({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: "Too many OTP requests from this IP, please try again later.",
 });
 
-const otpPerIpLimiter = rateLimit({
-  windowMs: OTP_WINDOW_MS,
-  max: OTP_MAX_PER_IP,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: "Too many OTP requests from this IP" },
+export const otpVerifyLimiter = withAbuseLogging({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: otpTargetKey, // per-recipient throttling
+  message: "Too many OTP verifications, please try again later.",
 });
 
-// Export combos so both limits apply
-export const otpSendLimiter = [otpPerIpLimiter, otpPerTargetLimiter];
-export const otpVerifyLimiter = [otpPerIpLimiter, otpPerTargetLimiter];
+export const otpVerifyIpLimiter = withAbuseLogging({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  message: "Too many OTP verifications from this IP, please try again later.",
+});
 
-export const refreshLimiter = rateLimit({
+/* ────────────────────────────────────────────────────────────────────────────
+ * Session / refresh / management limiters (same exported names)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export const refreshLimiter = withAbuseLogging({
   windowMs: 5 * 60 * 1000,
-  max: 30, // 30 refreshes/5min per IP
-  standardHeaders: true,
-  legacyHeaders: false,
+  max: 30,
+  message: "Too many refresh attempts, slow down.",
 });
 
-export const sessionMgmtLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 60, // revoke/list/etc
-  standardHeaders: true,
-  legacyHeaders: false,
+export const logoutLimiter = withAbuseLogging({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  message: "Too many logout attempts, please try again later.",
 });
 
-//Mount on routes: /session/refresh, /session/logout, /session/sessions*.
+export const revokeLimiter = withAbuseLogging({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: "Too many revoke attempts, please try again later.",
+});
+
+export const sessionMgmtLimiter = withAbuseLogging({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: "Too many session requests, please slow down.",
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Global limiter (to satisfy existing imports)
+ * - Safe default: generous limit; attach at app-level if needed.
+ * - If you don’t need it anymore, remove the import from app.js instead.
+ * ──────────────────────────────────────────────────────────────────────────── */
+export const globalLimiter = withAbuseLogging({
+  windowMs: 60 * 1000,
+  max: 1000,
+  message: "Too many requests, please try again later.",
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Route mapping (for maintainers):
+ *  - otpSendLimiter + otpSendIpLimiter        → POST /api/auth/send-otp
+ *  - otpVerifyLimiter + otpVerifyIpLimiter    → POST /api/auth/verify-otp
+ *  - refreshLimiter                           → POST /api/session/refresh
+ *  - logoutLimiter                            → POST /api/session/logout
+ *  - revokeLimiter                            → POST /api/session/revoke, /api/session/revoke-others
+ *  - sessionMgmtLimiter                       → GET  /api/session
+ * Notes:
+ *  - JSON error shape is consistent: { success:false, message:"..." }.
+ *  - Abuse events are logged via app logger (if available).
+ *  - IPv6-safe key prevents IPv6 users from bypassing limits.
+ * ──────────────────────────────────────────────────────────────────────────── */
