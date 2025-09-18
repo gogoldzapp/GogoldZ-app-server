@@ -90,4 +90,18 @@ export const sessionMgmtLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+export const logoutLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50, // logout
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const revokeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100, // revoke session
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 //Mount on routes: /session/refresh, /session/logout, /session/sessions*.

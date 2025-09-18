@@ -156,8 +156,12 @@ export async function revokeByRefreshToken(rawRefreshToken) {
 }
 
 export async function revokeSessionById(userId, sessionId) {
-  const s = await prisma.userSession.findUnique({ where: { id: sessionId } });
-  if (!s || s.userId !== userId) return false;
+  //Enforce ownership in the where clause
+  const session = await prisma.userSession.findFirst({
+    where: { id: sessionId, userId },
+    select: { id: true, userId: true },
+  });
+  if (!session || session.userId !== userId) return false;
   await prisma.userSession.update({
     where: { id: sessionId },
     data: {

@@ -45,15 +45,22 @@ export async function refresh(req, res) {
     // 3. Reuse detection
     const reusedSession = await reuseDetectionAndRevoke(rawRefreshToken);
     if (reusedSession) {
+      // New: Kill ever session for this user immediately
+      await revokeAllSessions(reusedSession.userId, null);
       req.user = req.user || {};
       req.user.userId = req.user.userId || reusedSession.userId;
 
-      await logUserAction(req, "refresh_failed", "token_reuse_detected", {
-        sessionId: reusedSession.id,
-      });
+      await logUserAction(
+        req,
+        "refresh_failed",
+        "token_reuse_detected_all_sessions_revoked",
+        {
+          reusedSessionId: reusedSession.id,
+        }
+      );
       return unauthorized(
         res,
-        "Suspicious activity detected. Sessions revoked. Please log in again."
+        "Suspicious activity detected. All sessions were revoked. Please log in again."
       );
     }
 
