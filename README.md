@@ -1,4 +1,4 @@
-Here’s a clean, drop-in **README.md** you can paste into your repo. It’s written for devs, QA, and security reviewers.
+
 
 ---
 
