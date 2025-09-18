@@ -1,15 +1,9 @@
-import {
-  sendOtpService,
-  verifyOtpService,
-  refreshService,
-  logoutService,
-} from "../services/authService.js";
+import { sendOtpService, verifyOtpService } from "../services/authService.js";
 
 // just delegate — don't send a second response
 export const sendOtp = (req, res, next) => sendOtpService(req, res, next);
 export const verifyOtp = (req, res, next) => verifyOtpService(req, res, next);
-export const refresh = (req, res, next) => refreshService(req, res, next);
-export const logout = (req, res, next) => logoutService(req, res, next);
+
 
 // export const updatePassword = async (req, res) => {
 //   try {

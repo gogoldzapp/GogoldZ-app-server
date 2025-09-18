@@ -8,7 +8,7 @@
   "scripts": {
     "start": "cross-env NODE_ENV=production node server.js",
     "dev": "cross-env NODE_ENV=development nodemon server.js",
-    "test": "cross-env NODE_ENV=test jest",
+    "test": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "check:env": "node src/index.js",
     "job:otp-cleanup": "node src/jobs/cleanupOtps.js",
     "job:sessions-cleanup": "node src/jobs/cleanupSessions.js"
@@ -45,7 +45,9 @@
     "@prisma/client": "^6.16.1",
     "cross-env": "^10.0.0",
     "dotenv-safe": "^9.1.0",
+    "jest": "^29.7.0",
     "nodemon": "^3.1.10",
-    "prisma": "^6.16.1"
+    "prisma": "^6.16.1",
+    "supertest": "^6.3.4"
   }
 }

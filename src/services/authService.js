@@ -14,6 +14,7 @@ import { generateUserId, normalizeUserFrom } from "../utils/userIdGenerator.js";
 import { bootstrapUserAfterVerification } from "./userBootstrap.service.js";
 import axios from "axios";
 import nodemailer from "nodemailer";
+import logUserAction from "../utils/logUserAction.js";
 
 // OTP helpers
 const { hash: bHash, compare: bCompare } = bcrypt;
@@ -117,8 +118,19 @@ async function verifyOtpChallenge(channel, target, code, opts = {}) {
     },
     orderBy: { createdAt: "desc" },
   });
-  if (!challenge)
+  await logUserAction(
+    `OTP verification attempt for ${tg} via ${ch}`,
+    "verify_otp",
+    `OTP verification attempt for ${tg} via ${ch}`
+  );
+  if (!challenge) {
+    await logUserAction(
+      `OTP verification failed for ${tg} via ${ch}`,
+      "verify_otp_failed",
+      `OTP verification failed for ${tg} via ${ch}`
+    );
     throw Object.assign(new Error("OTP not found or expired"), { status: 400 });
+  }
 
   const ok = await bCompare(cd, challenge.codeHash);
   if (ok) {
@@ -166,6 +178,11 @@ export async function sendOtpService(req, res) {
       .json({ success: false, message: "channel and target required" });
   const ch = String(channel).toUpperCase();
   const otpChallenge = await createOtpChallenge(ch, target);
+  await logUserAction(
+    `OTP sent for ${target} via ${channel}`,
+    "send_otp",
+    `OTP sent to ${target} via ${channel}`
+  );
   return res.json({
     success: true,
     message: "OTP sent",
@@ -208,6 +225,11 @@ export async function verifyOtpService(req, res, next) {
           user = await prisma.user.create({
             data: { userId: newUserId, ...whereIdentity, isActive: true },
           });
+          await logUserAction(
+            `New user created: ${user.userId} (${target})`,
+            "user_signup",
+            `New user created: ${user.userId} (${target})`
+          );
           await bootstrapUserAfterVerification(req, {
             userId: user.userId,
             channel: ch,
@@ -262,78 +284,3 @@ export async function verifyOtpService(req, res, next) {
   }
 }
 
-export async function refreshService(req, res) {
-  try {
-    const { token: raw, from } = readRefreshFromReq(req);
-    if (!raw)
-      return res
-        .status(401)
-        .json({ success: false, message: "Missing refresh token" });
-    if (from === "cookie") {
-      const v = requireCsrfIfCookie(req);
-      if (!v.ok)
-        return res
-          .status(v.status)
-          .json({ success: false, message: v.message });
-    }
-
-    // Reuse detection first
-    const reused = await reuseDetectionAndRevoke(raw);
-    if (reused)
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Token reuse detected — session revoked",
-        });
-
-    const { accessToken, refreshToken, session } = await issueRefreshRotation({
-      rawRefreshToken: raw,
-    });
-
-    if (
-      from === "cookie" ||
-      (req.headers["x-client"] || "").toLowerCase() === "web"
-    ) {
-      setRefreshCookie(res, refreshToken);
-      return res.json({ success: true, accessToken, sessionId: session.id });
-    }
-    return res.json({
-      success: true,
-      accessToken,
-      refreshToken,
-      sessionId: session.id,
-    });
-  } catch (e) {
-    return res
-      .status(e.status || 401)
-      .json({ success: false, message: e.message || "Refresh failed" });
-  }
-}
-
-export async function logoutService(req, res) {
-  try {
-    const { token: raw, from } = readRefreshFromReq(req);
-    if (!raw) return res.json({ success: true }); // idempotent
-    if (from === "cookie") {
-      const v = requireCsrfIfCookie(req);
-      if (!v.ok)
-        return res
-          .status(v.status)
-          .json({ success: false, message: v.message });
-    }
-
-    await revokeByRefreshToken(raw);
-
-    // Clear cookies (if any)
-    res.clearCookie(process.env.REFRESH_COOKIE_NAME || "refresh_token", {
-      path: process.env.REFRESH_COOKIE_PATH || "/auth",
-    });
-    res.clearCookie(process.env.CSRF_COOKIE_NAME || "csrf_token", {
-      path: process.env.REFRESH_COOKIE_PATH || "/auth",
-    });
-    return res.json({ success: true });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-}
