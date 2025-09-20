@@ -282,7 +282,8 @@ export async function verifyOtpService(req, res, next) {
 // Update or create user password (hashed)
 export async function setUserPassword(req, res, next) {
   try {
-    const { userId, newPassword } = req.body;
+    const { newPassword } = req.body;
+    const userId = req.user?.userId;
     if (!userId || typeof newPassword !== "string" || newPassword.length < 6)
       throw new Error("Invalid userId or password");
 
