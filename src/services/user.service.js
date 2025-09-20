@@ -84,7 +84,11 @@ export const setEmailService = async (req, phoneNumber, email) => {
 };
 
 export const verifyEmailService = async (req, phoneNumber, token) => {
+  // console log for phoneNumber
+  console.log("Verifying email for phoneNumber:", phoneNumber);
   const user = await prisma.user.findUnique({ where: { phoneNumber } });
+  console.log("User found:", user);
+  if (!user) return { error: "User not found", status: 404 };
   const userDetails = await prisma.userDetails.findUnique({
     where: { userId: user.userId },
   });

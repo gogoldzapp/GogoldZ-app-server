@@ -1,0 +1,753 @@
+openapi: 3.0.1
+info:
+  title: GoGoldZ API (Local Dev)
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /auth/send-otp:
+    post:
+      summary: Send OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel:
+                  type: string
+                target:
+                  type: string
+              required:
+                - channel
+                - target
+      responses:
+        "200":
+          description: OTP sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: OTP sent
+
+  /auth/verify-otp:
+    post:
+      summary: Verify OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel:
+                  type: string
+                target:
+                  type: string
+                code:
+                  type: string
+              required:
+                - channel
+                - target
+                - code
+      responses:
+        "200":
+          description: Verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: OTP verified successfully
+                  accessToken:
+                    type: string
+                    example: abc123
+                    description: Access token for authenticated requests
+                  refreshToken:
+                    type: string
+                    description: Refresh token for obtaining new access tokens
+                    example: def456
+                  expiresIn:
+                    type: integer
+                    example: 3600
+                    description: Access token expiry time in seconds
+                  sessionId:
+                    type: string
+                    example: session123
+                    description: Session identifier for the user session
+                  userId:
+                    type: string
+                    example: user123
+                    description: Unique identifier for the user
+        "400":
+          description: Invalid OTP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Invalid OTP
+                  errorCode:
+                    type: string
+                    example: invalid_otp
+                    description: Specific error code for the failure reason
+                  errorDetails:
+                    type: string
+                    example: The OTP provided is incorrect or has expired.
+                    description: Additional details about the error
+  /auth/update-password:
+    post:
+      summary: Update Password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                newPassword:
+                  type: string
+              required:
+                - userId
+                - newPassword
+      responses:
+        "200":
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Password updated successfully
+        "400":
+          description: Error updating password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Error updating password
+                  errorCode:
+                    type: string
+                    example: update_failed
+                    description: Specific error code for the failure reason
+                  errorDetails:
+                    type: string
+                    example: Unable to update password due to server error.
+                    description: Additional details about the error
+  /user/profile:
+    get:
+      summary: Get User Profile
+      parameters:
+        - in: query
+          name: userId
+          schema:
+            type: string
+          required: true
+          description: Unique identifier for the user
+      responses:
+        "200":
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fullName:
+                    type: string
+                    example: John Doe
+                  dob:
+                    type: string
+                    example: 1990-01-01
+                  gender:
+                    type: string
+                    example: Male
+                  addressLine1:
+                    type: string
+                    example: 123 Main St
+                  addressLine2:
+                    type: string
+                    example: Apt 4B
+                  city:
+                    type: string
+                    example: New York
+                  state:
+                    type: string
+                    example: NY
+                  postalCode:
+                    type: string
+                    example: 10001
+                  country:
+                    type: string
+                    example: USA
+                  email:
+                    type: string
+                    example: john.doe@example.com
+        "400":
+          description: Error retrieving profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Error retrieving profile
+                  errorCode:
+                    type: string
+                    example: retrieval_failed
+                    description: Specific error code for the failure reason
+                  errorDetails:
+                    type: string
+                    example: Unable to retrieve profile due to server error.
+                    description: Additional details about the error
+  /user/update-profile:
+    post:
+      summary: Update User Profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName:
+                  type: string
+                dob:
+                  type: string
+                gender:
+                  type: string
+                addressLine1:
+                  type: string
+                addressLine2:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                postalCode:
+                  type: string
+                country:
+                  type: string
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Profile updated successfully
+        "400":
+          description: Error updating profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Error updating profile
+                  errorCode:
+                    type: string
+                    example: update_failed
+                    description: Specific error code for the failure reason
+                  errorDetails:
+                    type: string
+                    example: Unable to update profile due to server error.
+                    description: Additional details about the error
+  /user/upload-profile-picture:
+    post:
+      summary: Upload Profile Picture
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                file:
+                  type: string
+                  format: binary
+              required:
+                - userId
+                - file
+      responses:
+        "200":
+          description: Profile picture uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Profile picture uploaded successfully
+                  imageUrl:
+                    type: string
+                    example: http://example.com/images/profile123.jpg
+                    description: URL of the uploaded profile picture
+        "400":
+          description: Error uploading profile picture
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Error uploading profile picture
+                  errorCode:
+                    type: string
+                    example: upload_failed
+                    description: Specific error code for the failure reason
+                  errorDetails:
+                    type: string
+                    example: Unable to upload profile picture due to server error.
+                    description: Additional details about the error
+  /user/submit-kyc:
+    post:
+      summary: Submit KYC Information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                panNumber:
+                  type: string
+                required:
+                  - userId
+                  - panNumber
+      responses:
+        "200":
+          description: KYC submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: KYC submitted successfully
+                    kycstatus:
+                      type: string
+                      example: pending
+                      description: Status of the KYC submission (pending, approved, rejected)
+                      maskedPan:
+                        type: string
+                        example: XXXXX1234X
+                        description: Masked PAN number for security
+        "400":
+          description: Error submitting KYC
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Error submitting KYC
+                  errorCode:
+                    type: string
+                    example: kyc_submission_failed
+                    description: Specific error code for the failure reason
+                  errorDetails:
+                    type: string
+                    example: Unable to submit KYC due to server error.
+                    description: Additional details about the error
+                "404":
+                  description: User not found
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: false
+                          message:
+                            type: string
+                            example: User not found
+                          errorCode:
+                            type: string
+                            example: user_not_found
+                            description: Specific error code for the failure reason
+                          errorDetails:
+                            type: string
+                            example: The specified user does not exist.
+                            description: Additional details about the error
+  /session/refresh:
+    post:
+      summary: Refresh User Session
+      responses:
+        "200":
+          description: Session refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Session refreshed successfully
+        "400":
+          description: Error refreshing session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Error refreshing session
+                  errorCode:
+                    type: string
+                    example: session_refresh_failed
+                    description: Specific error code for the failure reason
+                  errorDetails:
+                    type: string
+                    example: Unable to refresh session due to server error.
+                    description: Additional details about the error
+  /session/logout:
+    post:
+      summary: Logout User
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+              required:
+                - userId
+      responses:
+        "200":
+          description: User logged out successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User logged out successfully
+        "400":
+          description: Error logging out user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Error logging out user
+                  errorCode:
+                    type: string
+                    example: logout_failed
+                    description: Specific error code for the failure reason
+                  errorDetails:
+                    type: string
+                    example: Unable to log out user due to server error.
+                    description: Additional details about the error
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /session/:
+    get:
+      summary: Get User Sessions
+      parameters:
+        - in: query
+          name: userId
+          schema:
+            type: string
+          required: true
+          description: Unique identifier for the user
+      responses:
+        "200":
+          description: User sessions retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        sessionId:
+                          type: string
+                          example: session123
+                        createdAt:
+                          type: string
+                          example: 2023-01-01T12:00:00Z
+                        expiresAt:
+                          type: string
+                          example: 2023-01-01T13:00:00Z
+        "400":
+          description: Error retrieving sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Error retrieving sessions
+                  errorCode:
+                    type: string
+                    example: retrieval_failed
+                    description: Specific error code for the failure reason
+                  errorDetails:
+                    type: string
+                    example: Unable to retrieve sessions due to server error.
+                    description: Additional details about the error
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /session/revoke:
+    post:
+      summary: Revoke User Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+              required:
+                - sessionId
+      responses:
+        "200":
+          description: Session revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Session revoked successfully
+        "400":
+          description: Error revoking session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Error revoking session
+                  errorCode:
+                    type: string
+                    example: revoke_failed
+                    description: Specific error code for the failure reason
+                  errorDetails:
+                    type: string
+                    example: Unable to revoke session due to server error.
+                    description: Additional details about the error
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /session/revoke-others:
+    post:
+      summary: Revoke Other User Sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+              required:
+                - userId
+      responses:
+        "200":
+          description: Other sessions revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Other sessions revoked successfully
+        "400":
+          description: Error revoking other sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Error revoking other sessions
+                  errorCode:
+                    type: string
+                    example: revoke_others_failed
+                    description: Specific error code for the failure reason
+                  errorDetails:
+                    type: string
+                    example: Unable to revoke other sessions due to server error.
+                    description: Additional details about the error
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Unauthorized access
+              errorCode:
+                type: string
+                example: unauthorized
+                description: Specific error code for unauthorized access
+              errorDetails:
+                type: string
+                example: Access token is missing or invalid.
+                description: Additional details about the error
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Internal Server Error
+              errorCode:
+                type: string
+                example: internal_server_error
+                description: Specific error code for internal server error
+              errorDetails:
+                type: string
+                example: An unexpected error occurred on the server.
+                description: Additional details about the error

@@ -31,6 +31,7 @@ import { pingSupabase } from "./supabase.js";
 
 import { metricsRouter } from "./routes/metrics.route.js";
 import { globalLimiter } from "./middlewares/limiters.js";
+import { mountSwagger } from "./docs/swagger.js";
 
 validateConfig();
 
@@ -86,7 +87,13 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-   allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-XSRF-Token", "CSRF-Token"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-CSRF-Token",
+      "X-XSRF-Token",
+      "CSRF-Token",
+    ],
     exposedHeaders: [],
   })
 );
@@ -110,7 +117,8 @@ app.use(xss());
 app.get("/healthz", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
-
+// Swagger (development only)
+mountSwagger(app);
 app.get("/readiness", async (_req, res) => {
   res.set("Cache-Control", "no-store");
   const [dbOk, supaOk] = await Promise.all([pingDb(), pingSupabase()]);

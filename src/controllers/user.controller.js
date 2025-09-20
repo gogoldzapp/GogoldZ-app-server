@@ -38,7 +38,7 @@ export const verifyEmail = async (req, res) => {
 export const getUserProfile = async (req, res) => {
   console.log("Fetching user profile...", req.user);
   try {
-    const result = await getUserProfileService(req.user.userId);
+    const result = await getUserProfileService(req.user?.userId);
     if (result.error)
       return res
         .status(result.status)
@@ -53,7 +53,7 @@ export const updateUserProfile = async (req, res) => {
   try {
     const result = await updateUserProfileService(
       req,
-      req.user.userId,
+      req.user?.userId,
       req.body
     );
     if (result.error)
