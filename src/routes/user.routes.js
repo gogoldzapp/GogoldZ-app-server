@@ -14,6 +14,7 @@ import {
   updateUserProfile,
   uploadProfilePicture,
 } from "../controllers/user.controller.js";
+import { normalizeToE164 } from "../utils/maskUtils.js";
 
 // --- Schemas ---
 const setEmailSchema = Joi.object({
@@ -32,13 +33,14 @@ const setEmailSchema = Joi.object({
 
 const verifyEmailSchema = Joi.object({
   phoneNumber: Joi.string()
-    .pattern(/^\+?\d{10,13}$/)
+    .custom(normalizeToE164, "phone normalization")
     .required()
     .messages({
-      "string.pattern.base": "Phone number must be 10 to 13 digits",
+      "string.pattern.base": "Phone number must be 10 to 15 digits",
       "any.required": "Phone number is required",
     }),
-  token: Joi.string().required().messages({
+  token: Joi.string().min(1).required().messages({
+    "string.empty": "Token cannot be empty",
     "any.required": "Token is required",
   }),
 });
