@@ -1,20 +1,13 @@
 // src/services/authService.js
 import bcrypt from "bcryptjs";
 import prisma from "../config/prisma.js";
-import {
-  createSessionAndTokens,
-  issueRefreshRotation,
-  reuseDetectionAndRevoke,
-  revokeByRefreshToken,
-  setRefreshCookie,
-  readRefreshFromReq,
-  requireCsrfIfCookie,
-} from "./session.service.js";
+import { createSessionAndTokens, setRefreshCookie } from "./session.service.js";
 import { generateUserId, normalizeUserFrom } from "../utils/userIdGenerator.js";
 import { bootstrapUserAfterVerification } from "./userBootstrap.service.js";
 import axios from "axios";
 import nodemailer from "nodemailer";
 import logUserAction from "../utils/logUserAction.js";
+import { hashPassword } from "../utils/maskUtils.js";
 
 // OTP helpers
 const { hash: bHash, compare: bCompare } = bcrypt;
@@ -286,3 +279,89 @@ export async function verifyOtpService(req, res, next) {
   }
 }
 
+// Update or create user password (hashed)
+export async function setUserPassword(req, res, next) {
+  try {
+    const { userId, newPassword } = req.body;
+    if (!userId || typeof newPassword !== "string" || newPassword.length < 6)
+      throw new Error("Invalid userId or password");
+
+    const hashedPassword = await hashPassword(newPassword);
+    await prisma.user.update({
+      where: { userId },
+      data: { password: hashedPassword },
+    });
+    await logUserAction(req, "set_password", `Password updated for ${userId}`);
+    return res.json({ success: true, message: "Password Updated" });
+  } catch (err) {
+    return next
+      ? next(err)
+      : res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+// endpoint for log in with email/phone + password
+export async function loginWithPassword(req, res, next) {
+  try {
+    const { identifier, password } = req.body;
+    if (
+      !identifier ||
+      typeof identifier !== "string" ||
+      !password ||
+      typeof password !== "string"
+    )
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid identifier or password" });
+    const idTrim = identifier.trim();
+    const where = idTrim.includes("@")
+      ? { email: idTrim }
+      : { phoneNumber: idTrim.replace(/[^\d+]/g, "") };
+    const user = await prisma.user.findFirst({ where });
+    if (!user || !user.password)
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
+    const ok = await bCompare(password, user.password);
+    if (!ok)
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
+    if (!user.isActive)
+      return res
+        .status(403)
+        .json({ success: false, message: "User account is disabled" });
+    const ua = req.headers["user-agent"] || null;
+    const ip = req.ip || req.connection?.remoteAddress || null;
+    const { session, accessToken, refreshToken } = await createSessionAndTokens(
+      {
+        user,
+        userAgent: ua,
+        ip,
+        deviceName: null,
+        platform: null,
+      }
+    );
+    const fromWeb = (req.headers["x-client"] || "").toLowerCase() === "web";
+    if (fromWeb) {
+      setRefreshCookie(res, refreshToken);
+      return res.json({
+        success: true,
+        accessToken,
+        sessionId: session.id,
+        userId: user.userId,
+      });
+    }
+    return res.json({
+      success: true,
+      accessToken,
+      refreshToken,
+      sessionId: session.id,
+      userId: user.userId,
+    });
+  } catch (err) {
+    return next
+      ? next(err)
+      : res.status(500).json({ success: false, message: err.message });
+  }
+}

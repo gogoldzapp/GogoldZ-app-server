@@ -18,10 +18,10 @@ import {
 // --- Schemas ---
 const setEmailSchema = Joi.object({
   phoneNumber: Joi.string()
-    .pattern(/^\d{10}$/)
+    .pattern(/^\+?\d{10,13}$/)
     .required()
     .messages({
-      "string.pattern.base": "Phone number must be 10 digits",
+      "string.pattern.base": "Phone number must be 10 to 13 digits",
       "any.required": "Phone number is required",
     }),
   email: Joi.string().email().required().messages({
@@ -32,10 +32,10 @@ const setEmailSchema = Joi.object({
 
 const verifyEmailSchema = Joi.object({
   phoneNumber: Joi.string()
-    .pattern(/^\d{10}$/)
+    .pattern(/^\+?\d{10,13}$/)
     .required()
     .messages({
-      "string.pattern.base": "Phone number must be 10 digits",
+      "string.pattern.base": "Phone number must be 10 to 13 digits",
       "any.required": "Phone number is required",
     }),
   token: Joi.string().required().messages({
